@@ -296,28 +296,33 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                 case oldMoveState.cameraModifyMode of
                   CameraRotate ->
                     let
-                      -- V1 = projection along Z axis onto unit sphere of previous pointer normalised coordinates.
-                      x1 = 2 * ((toFloat lastX) / (toFloat canvasWidth))  - 1
-                      y1 = 2 * ((toFloat lastY) / (toFloat canvasHeight)) - 1 
-                      z1 = sqrt( 1 - (x1 * x1) + (y1 * y1) )
+                      -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
+                      sphereRadius = toFloat (maximum ( map abs [lastX, lastY, pointer.x, pointer.y] ) )
 
-                      -- V2 = projection along Z axis onto unit sphere of current pointer normalised coordinates.
-                      x2 = 2 * ((toFloat pointer.x) / (toFloat canvasWidth))  - 1
-                      y2 = 2 * ((toFloat pointer.y) / (toFloat canvasHeight)) - 1 
-                      z2 = sqrt( 1 - (x2 * x2) + (y2 * y2) )
+                      epsilon = 0.000000000001
+
+                      -- V1 = projection along Z axis onto positive hemisphere of unit sphere of: previous pointer coordinates.
+                      x1 = (toFloat lastX) / sphereRadius
+                      y1 = (toFloat lastY) / sphereRadius
+                      z1 = sqrt( 1 + epsilon  - (x1 * x1) + (y1 * y1) )
+
+                      -- V2 = projection along Z axis onto positive hemisphere of unit sphere of: current pointer coordinates.
+                      x2 = (toFloat pointer.x) / sphereRadius
+                      y2 = (toFloat pointer.y) / sphereRadius
+                      z2 = sqrt( 1 + epsilon - (x2 * x2) + (y2 * y2) )
 
                       -- dV = V2 - V1
                       dx = x2 - x1
                       dy = y2 - y1
                       dz = z2 - z1
  
-                      -- Cross product: V2 X dV (Could also have used V1 X dV)
-                      rx = y2 * dz - z2 * dy
-                      ry = z2 * dx - x2 * dz
-                      rz = x2 * dy - y2 * dx
+                      -- Cross product: dv X V2 (Could also have used dV X V1)
+                      rx = dy * z2 - dz * y2
+                      ry = dz * x2 - dx * z2
+                      rz = dx * y2 - dy * x2
 
                       -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
-                      rw = sqrt( 1 - (rx * rx) + (ry * ry) + (rz * rz) )
+                      rw = sqrt( 1 + epsilon - (rx * rx) + (ry * ry) + (rz * rz) )
 
                       -- Simple formula for rotation quaternion, since it is an infinitesimal rotation.
                       rotQuaternion = Quaternion rw rx ry rz 
