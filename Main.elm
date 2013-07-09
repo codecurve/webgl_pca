@@ -270,15 +270,13 @@ keyboardAlt keysDown = any (\x -> x == 18) keysDown
 cameraMoveState : Signal CameraMoveState
 cameraMoveState = Signal.foldp updateCameraMoveState initialCameraMoveState (Signal.lift4 (,,,) Keyboard.shift Keyboard.ctrl Keyboard.keysDown Touch.touches)
 
-epsilon = 0.000000000001
-
 -- V1 = projection along Z axis onto positive hemisphere of unit sphere.
 sphereProjectionZ3D : Float -> Float -> Float -> Vector3
 sphereProjectionZ3D x y sphereRadius = 
   let
     x' = x / sphereRadius
     y' = y / sphereRadius
-    z' = sqrt( 1 + epsilon  - (x * x) + (y * y) )
+    z' = sqrt ( max 0 ( 1 - (x * x) + (y * y) ) )
   in
     Vector3 x' y' z'
 
@@ -320,7 +318,7 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                   CameraRotate ->
                     let
                       -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
-                      sphereRadius = toFloat (maximum ( map abs [lastX, lastY, pointer.x, pointer.y] ) )
+                      sphereRadius = toFloat (maximum ( map abs [lastX, lastY, pointer.x, pointer.y, canvasWidth, canvasHeight] ) )
 
                       v1 = sphereProjectionZ3D lastX lastY sphereRadius
                       v2 = sphereProjectionZ3D pointer.x pointer.y sphereRadius
@@ -331,7 +329,7 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                       (Vector3 rx ry rz) = crossV3xV3 dv v1
 
                       -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
-                      rw = sqrt( 1 + epsilon - (rx * rx) + (ry * ry) + (rz * rz) )
+                      rw = sqrt ( max 0 ( 1 - (rx * rx) + (ry * ry) + (rz * rz) ) )
 
                       -- Simple formula for rotation quaternion, since it is an infinitesimal rotation.
                       rotQuaternion = Quaternion rw rx ry rz 
