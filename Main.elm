@@ -253,7 +253,7 @@ type CameraMoveState = { cameraQuaternion: Quaternion, cameraTransformation: Vec
                          processedPosition: (Int, Int),
                          mainTouch: Touch, 
                          wasDragging: Bool, 
-                         cameraModifyMode: CameraModifyMode }
+                         cameraModifyMode: CameraModifyMode, debug: [Float] }
 
 initialCameraMoveState : CameraMoveState
 initialCameraMoveState = { cameraQuaternion = Quaternion 1 0 0 0,
@@ -261,7 +261,7 @@ initialCameraMoveState = { cameraQuaternion = Quaternion 1 0 0 0,
                            processedPosition = (0,0), 
                            mainTouch = { x = 0, y = 0, id = 0, x0 = 0, y0 = 0, t0 = 0 },
                            wasDragging = False,
-                           cameraModifyMode = CameraRotate
+                           cameraModifyMode = CameraRotate, debug=[]
                            }
 
 keyboardAlt : [KeyCode] -> Bool
@@ -269,6 +269,29 @@ keyboardAlt keysDown = any (\x -> x == 18) keysDown
 
 cameraMoveState : Signal CameraMoveState
 cameraMoveState = Signal.foldp updateCameraMoveState initialCameraMoveState (Signal.lift4 (,,,) Keyboard.shift Keyboard.ctrl Keyboard.keysDown Touch.touches)
+
+epsilon = 0.000000000001
+
+-- V1 = projection along Z axis onto positive hemisphere of unit sphere.
+sphereProjectionZ3D : Float -> Float -> Float -> Vector3
+sphereProjectionZ3D x y sphereRadius = 
+  let
+    x' = x / sphereRadius
+    y' = y / sphereRadius
+    z' = sqrt( 1 + epsilon  - (x * x) + (y * y) )
+  in
+    Vector3 x' y' z'
+
+crossV3xV3 : Vector3 -> Vector3 -> Vector3
+crossV3xV3 (Vector3 x1 y1 z1) (Vector3 x2 y2 z2) = 
+  Vector3
+    ( (y1 * z2) - (z1 * y2) )
+    ( (z1 * x2) - (x1 * z2) )
+    ( (x1 * y2) - (y1 * x2) )
+
+subtractV3fromV3 (Vector3 x1 y1 z1) (Vector3 x2 y2 z2) = 
+  Vector3 (x2 - x1) (y2 - y1) (z2 - z1)
+ 
 updateCameraMoveState : (Bool, Bool, [KeyCode], [Touch]) -> CameraMoveState -> CameraMoveState
 updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
   let
@@ -299,27 +322,13 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                       -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
                       sphereRadius = toFloat (maximum ( map abs [lastX, lastY, pointer.x, pointer.y] ) )
 
-                      epsilon = 0.000000000001
+                      v1 = sphereProjectionZ3D lastX lastY sphereRadius
+                      v2 = sphereProjectionZ3D pointer.x pointer.y sphereRadius
 
-                      -- V1 = projection along Z axis onto positive hemisphere of unit sphere of: previous pointer coordinates.
-                      x1 = (toFloat lastX) / sphereRadius
-                      y1 = (toFloat lastY) / sphereRadius
-                      z1 = sqrt( 1 + epsilon  - (x1 * x1) + (y1 * y1) )
+                      dv = subtractV3fromV3 v2 v1
 
-                      -- V2 = projection along Z axis onto positive hemisphere of unit sphere of: current pointer coordinates.
-                      x2 = (toFloat pointer.x) / sphereRadius
-                      y2 = (toFloat pointer.y) / sphereRadius
-                      z2 = sqrt( 1 + epsilon - (x2 * x2) + (y2 * y2) )
-
-                      -- dV = V2 - V1
-                      dx = x2 - x1
-                      dy = y2 - y1
-                      dz = z2 - z1
- 
                       -- Cross product: dv X V2 (Could also have used dV X V1)
-                      rx = dy * z2 - dz * y2
-                      ry = dz * x2 - dx * z2
-                      rz = dx * y2 - dy * x2
+                      (Vector3 rx ry rz) = crossV3xV3 dv v1
 
                       -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
                       rw = sqrt( 1 + epsilon - (rx * rx) + (ry * ry) + (rz * rz) )
@@ -329,7 +338,7 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                     in
                       { oldMoveState | cameraQuaternion <-
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
-                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer }
+                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer, debug <- [sphereRadius, rw,rx,ry,rz] }
                   CameraTranslate plane ->
                     let
                       distanceX = (toFloat (pointer.x - lastX)) / (toFloat canvasWidth) * 50
@@ -564,9 +573,9 @@ baseModel = lvJSONToModel allElements <~ lvJSON
 
 main : Signal Element
 main =
-  pureMain <~ baseModel ~ cameraMatrix
+  pureMain <~ baseModel ~ cameraMatrix ~ cameraMoveState
 
-pureMain baseModelValue cameraMatrixValue =
+pureMain baseModelValue cameraMatrixValue cameraMoveStateValue =
     let
       camPerspect = myPerspectiveMatrix `multiply4x4` cameraMatrixValue
       rotatedDiffuseDirection = vec4ToXYZ <| (mat4ToInverseMat3 cameraMatrixValue) `mat4x4xv` initialDiffuseDirection
@@ -578,5 +587,5 @@ pureMain baseModelValue cameraMatrixValue =
                          ambientIntensity = 0.4,
                          diffuseIntensity = 0.3,
                          diffuseDirection = rotatedDiffuseDirection }))
-     -- `above` asText cameraMatrixValue
+     `above` ((flow down . map asText) cameraMoveStateValue.debug)
 
