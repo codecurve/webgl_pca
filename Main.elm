@@ -296,21 +296,31 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                 case oldMoveState.cameraModifyMode of
                   CameraRotate ->
                     let
-                      x = 2 * ((toFloat pointer.x) / (toFloat canvasWidth))  - 1
-                      y = 2 * ((toFloat pointer.y) / (toFloat canvasHeight)) - 1 
-                      modPositionVector = sqrt( (x * x) + (y * y) )
+                      -- V1 = projection along Z axis onto unit sphere of previous pointer normalised coordinates.
+                      x1 = 2 * ((toFloat lastX) / (toFloat canvasWidth))  - 1
+                      y1 = 2 * ((toFloat lastY) / (toFloat canvasHeight)) - 1 
+                      z1 = sqrt( 1 - (x1 * x1) + (y1 * y1) )
 
-                      xChange = 2 * (toFloat (lastX - pointer.x)) / (toFloat canvasWidth)
-                      yChange = 2 * (toFloat (lastY - pointer.y)) / (toFloat canvasHeight)
-                      modChangeVector = sqrt( (xChange * xChange) + (yChange * yChange) )
+                      -- V2 = projection along Z axis onto unit sphere of current pointer normalised coordinates.
+                      x2 = 2 * ((toFloat pointer.x) / (toFloat canvasWidth))  - 1
+                      y2 = 2 * ((toFloat pointer.y) / (toFloat canvasHeight)) - 1 
+                      z2 = sqrt( 1 - (x2 * x2) + (y2 * y2) )
+
+                      -- dV = V2 - V1
+                      dx = x2 - x1
+                      dy = y2 - y1
+                      dz = z2 - z1
  
-                      alpha = if modChangeVector > 0 && modPositionVector > 0 then abs(x * xChange + y * yChange)/modChangeVector/modPositionVector else 1.0
+                      -- Cross product: V2 X dV (Could also have used V1 X dV)
+                      rx = y2 * dz - z2 * dy
+                      ry = z2 * dx - x2 * dz
+                      rz = x2 * dy - y2 * dx
 
-                      phi   = alpha * xChange
-                      theta = alpha * yChange
-                      psi   = ((y * xChange) - (x * yChange))
+                      -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
+                      rw = sqrt( 1 - (rx * rx) + (ry * ry) + (rz * rz) )
 
-                      rotQuaternion = eulerToQuaternion phi psi theta
+                      -- Simple formula for rotation quaternion, since it is an infinitesimal rotation.
+                      rotQuaternion = Quaternion rw rx ry rz 
                     in
                       { oldMoveState | cameraQuaternion <-
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
