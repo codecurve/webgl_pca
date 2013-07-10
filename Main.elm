@@ -200,10 +200,10 @@ vectorToTranslationMatrix (Vector3 x y z) =
             (Vector4 0 0 1 z)
             (Vector4 0 0 0 1)
 
-lowVal = 0-0.8
-highVal = 0.8
-lowZ = 0-0.8
-highZ = 0.8
+lowVal = 0-50
+highVal = 50
+lowZ = 0-50
+highZ = 50
 
 placeholderModel =
   let
@@ -253,7 +253,7 @@ type CameraMoveState = { cameraQuaternion: Quaternion, cameraTransformation: Vec
                          processedPosition: (Int, Int),
                          mainTouch: Touch, 
                          wasDragging: Bool, 
-                         cameraModifyMode: CameraModifyMode, debug: [Float] }
+                         cameraModifyMode: CameraModifyMode, debug: [(String, Vector3)] }
 
 initialCameraMoveState : CameraMoveState
 initialCameraMoveState = { cameraQuaternion = Quaternion 1 0 0 0,
@@ -322,8 +322,8 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                       sphereRadius = sphereDiameter / 2
                       -- sphereRadius = toFloat (max lastX (max lastY (max lastX (max lastY (max canvasWidth canvasHeight)))))
 
-                      v1 = sphereProjectionZ3D (lastX     / sphereRadius - 1) (1 - (lastY     / sphereRadius))
-                      v2 = sphereProjectionZ3D (pointer.x / sphereRadius - 1) (1 - (pointer.y / sphereRadius))
+                      v1 = sphereProjectionZ3D (lastX     / sphereRadius - 1) (1 - (lastY     / sphereRadius ))
+                      v2 = sphereProjectionZ3D (pointer.x / sphereRadius - 1) (1 - (pointer.y / sphereRadius ))
 
                       dv = subtractV3fromV3 v2 v1
 
@@ -338,7 +338,11 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                     in
                       { oldMoveState | cameraQuaternion <-
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
-                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer, debug <- [sphereRadius, rw,rx,ry,rz] }
+                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer, 
+                        debug <- [
+                          ("sphereRadius rw 0", (Vector3 sphereRadius rw 0)),
+                          ("rx ry rz", (Vector3 rx ry rz)),
+                          ("v1",v1), ("v2",v2), ("dv", dv) ] }
                   CameraTranslate plane ->
                     let
                       distanceX = (toFloat (pointer.x - lastX)) / (toFloat canvasWidth) * 50
