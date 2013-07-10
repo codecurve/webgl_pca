@@ -271,14 +271,12 @@ cameraMoveState : Signal CameraMoveState
 cameraMoveState = Signal.foldp updateCameraMoveState initialCameraMoveState (Signal.lift4 (,,,) Keyboard.shift Keyboard.ctrl Keyboard.keysDown Touch.touches)
 
 -- V1 = projection along Z axis onto positive hemisphere of unit sphere.
-sphereProjectionZ3D : Float -> Float -> Float -> Vector3
-sphereProjectionZ3D x y sphereRadius = 
+sphereProjectionZ3D : Float -> Float -> Vector3
+sphereProjectionZ3D x y = 
   let
-    x' = x / sphereRadius
-    y' = y / sphereRadius
-    z' = sqrt ( max 0 ( 1 - (x * x) + (y * y) ) )
+    z = sqrt ( max 0 ( 1 - (x * x) + (y * y) ) )
   in
-    Vector3 x' y' z'
+    Vector3 x y z
 
 crossV3xV3 : Vector3 -> Vector3 -> Vector3
 crossV3xV3 (Vector3 x1 y1 z1) (Vector3 x2 y2 z2) = 
@@ -318,21 +316,25 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                   CameraRotate ->
                     let
                       -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
-                      sphereRadius = toFloat (maximum ( map abs [lastX, lastY, pointer.x, pointer.y, canvasWidth, canvasHeight] ) )
+                      sphereDiameter = toFloat (maximum ( map abs [lastX, lastY, canvasWidth, canvasHeight] ) )
+                      -- TODO: need to incude pointer.x and pointer.y in above list, but 32-bit elm is out of memory during compile if this is done.
 
-                      v1 = sphereProjectionZ3D lastX lastY sphereRadius
-                      v2 = sphereProjectionZ3D pointer.x pointer.y sphereRadius
+                      sphereRadius = sphereDiameter / 2
+                      -- sphereRadius = toFloat (max lastX (max lastY (max lastX (max lastY (max canvasWidth canvasHeight)))))
+
+                      v1 = sphereProjectionZ3D (lastX     / sphereRadius - 1) (1 - (lastY     / sphereRadius))
+                      v2 = sphereProjectionZ3D (pointer.x / sphereRadius - 1) (1 - (pointer.y / sphereRadius))
 
                       dv = subtractV3fromV3 v2 v1
 
                       -- Cross product: dv X V2 (Could also have used dV X V1)
-                      (Vector3 rx ry rz) = crossV3xV3 dv v1
+                      (Vector3 rx ry rz) = crossV3xV3 v1 dv
 
                       -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
-                      rw = sqrt ( max 0 ( 1 - (rx * rx) + (ry * ry) + (rz * rz) ) )
+                      rw = sqrt ( max 0 ( 1  - (rx * rx) + (ry * ry) + (rz * rz) ) )
 
                       -- Simple formula for rotation quaternion, since it is an infinitesimal rotation.
-                      rotQuaternion = Quaternion rw rx ry rz 
+                      rotQuaternion = normaliseQuaternion (Quaternion rw rx ry rz) 
                     in
                       { oldMoveState | cameraQuaternion <-
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
