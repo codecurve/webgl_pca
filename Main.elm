@@ -316,12 +316,13 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                   CameraRotate ->
                     let
                       -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
-                      sphereDiameter = toFloat (maximum ( map abs [lastX, lastY, canvasWidth, canvasHeight] ) )
-                      -- TODO: need to incude pointer.x and pointer.y in above list, but 32-bit elm is out of memory during compile if this is done.
-
-                      sphereRadius = sphereDiameter / 2
-                      -- sphereRadius = toFloat (max lastX (max lastY (max lastX (max lastY (max canvasWidth canvasHeight)))))
-
+                      halfCanvasWidth  = (toFloat canvasWidth) /2
+                      halfCanvasHeight = (toFloat canvasHeight)/2
+                      px : Float
+                      px = pointer.x
+                      py : Float
+                      py = pointer.y
+                      sphereRadius =  maximum ( map abs [(toFloat lastX)-halfCanvasWidth, (toFloat lastY)-halfCanvasHeight, halfCanvasWidth, halfCanvasHeight, px-halfCanvasWidth, py-halfCanvasHeight] )
                       v1 = sphereProjectionZ3D (lastX     / sphereRadius - 1) (1 - (lastY     / sphereRadius ))
                       v2 = sphereProjectionZ3D (pointer.x / sphereRadius - 1) (1 - (pointer.y / sphereRadius ))
 
@@ -340,6 +341,8 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
                         processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer, 
                         debug <- [
+                          ("lastX, lastY, 0", (Vector3 (toFloat lastX) (toFloat lastY) 0)),
+                          ("cw/2, ch/2, 0", (Vector3 halfCanvasWidth halfCanvasHeight 0)),
                           ("sphereRadius rw 0", (Vector3 sphereRadius rw 0)),
                           ("rx ry rz", (Vector3 rx ry rz)),
                           ("v1",v1), ("v2",v2), ("dv", dv) ] }
