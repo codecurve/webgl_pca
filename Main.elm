@@ -253,7 +253,7 @@ type CameraMoveState = { cameraQuaternion: Quaternion, cameraTransformation: Vec
                          processedPosition: (Int, Int),
                          mainTouch: Touch, 
                          wasDragging: Bool, 
-                         cameraModifyMode: CameraModifyMode, debug: [(String, Vector3)] }
+                         cameraModifyMode: CameraModifyMode }
 
 initialCameraMoveState : CameraMoveState
 initialCameraMoveState = { cameraQuaternion = Quaternion 1 0 0 0,
@@ -261,7 +261,7 @@ initialCameraMoveState = { cameraQuaternion = Quaternion 1 0 0 0,
                            processedPosition = (0,0), 
                            mainTouch = { x = 0, y = 0, id = 0, x0 = 0, y0 = 0, t0 = 0 },
                            wasDragging = False,
-                           cameraModifyMode = CameraRotate, debug=[]
+                           cameraModifyMode = CameraRotate
                            }
 
 keyboardAlt : [KeyCode] -> Bool
@@ -339,13 +339,7 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                     in
                       { oldMoveState | cameraQuaternion <-
                         normaliseQuaternion ( oldMoveState.cameraQuaternion `multiplyQuaternion` rotQuaternion ),
-                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer, 
-                        debug <- [
-                          ("lastX, lastY, 0", (Vector3 (toFloat lastX) (toFloat lastY) 0)),
-                          ("cw/2, ch/2, 0", (Vector3 halfCanvasWidth halfCanvasHeight 0)),
-                          ("sphereRadius rw 0", (Vector3 sphereRadius rw 0)),
-                          ("rx ry rz", (Vector3 rx ry rz)),
-                          ("v1",v1), ("v2",v2), ("dv", dv) ] }
+                        processedPosition <- (pointer.x, pointer.y), cameraModifyMode <- newCameraModifyMode, mainTouch <- pointer }
                   CameraTranslate plane ->
                     let
                       distanceX = (toFloat (pointer.x - lastX)) / (toFloat canvasWidth) * 50
@@ -594,5 +588,5 @@ pureMain baseModelValue cameraMatrixValue cameraMoveStateValue =
                          ambientIntensity = 0.4,
                          diffuseIntensity = 0.3,
                          diffuseDirection = rotatedDiffuseDirection }))
-     `above` ((flow down . map asText) cameraMoveStateValue.debug)
+
 
