@@ -318,13 +318,24 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                       -- all x,y,z coordinates will be normalised to coordinates in which the sphere of sphereRadius is a unit sphere
                       halfCanvasWidth  = (toFloat canvasWidth) /2
                       halfCanvasHeight = (toFloat canvasHeight)/2
-                      px : Float
-                      px = pointer.x
-                      py : Float
-                      py = pointer.y
-                      sphereRadius =  maximum ( map abs [(toFloat lastX)-halfCanvasWidth, (toFloat lastY)-halfCanvasHeight, halfCanvasWidth, halfCanvasHeight, px-halfCanvasWidth, py-halfCanvasHeight] )
-                      v1 = sphereProjectionZ3D (lastX     / sphereRadius - 1) (1 - (lastY     / sphereRadius ))
-                      v2 = sphereProjectionZ3D (pointer.x / sphereRadius - 1) (1 - (pointer.y / sphereRadius ))
+
+                      -- Explicitly stating the type for values derived from pointer, to avoid Elm crash during compile when type inference demands too much memory.
+                      -- Y coordinate sign gets flipped to match direction of WebGL axes.
+                      centeredCurrentX : Float
+                      centeredCurrentX = pointer.x - halfCanvasWidth
+                      centeredCurrentY : Float
+                      centeredCurrentY = halfCanvasHeight - pointer.y
+                      centeredLastX = (toFloat lastX) - halfCanvasWidth
+                      centeredLastY = halfCanvasHeight - (toFloat lastY)
+
+                      radiusPointerCurrent = sqrt ((centeredCurrentX * centeredCurrentX) + (centeredCurrentY * centeredCurrentY))
+                      radiusPointerLast    = sqrt ((centeredLastX    * centeredLastX)    + (centeredLastY    * centeredLastY))
+                      fudgeFactor = 1.1
+
+                      sphereRadius : Float
+                      sphereRadius =  maximum [fudgeFactor * radiusPointerCurrent, fudgeFactor * radiusPointerLast, halfCanvasWidth, halfCanvasHeight]
+                      v1 = sphereProjectionZ3D (centeredLastX    / sphereRadius ) (centeredLastY    / sphereRadius )
+                      v2 = sphereProjectionZ3D (centeredCurrentX / sphereRadius ) (centeredCurrentY / sphereRadius )
 
                       dv = subtractV3fromV3 v2 v1
 
