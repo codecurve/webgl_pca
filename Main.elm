@@ -274,7 +274,7 @@ cameraMoveState = Signal.foldp updateCameraMoveState initialCameraMoveState (Sig
 sphereProjectionZ3D : Float -> Float -> Vector3
 sphereProjectionZ3D x y = 
   let
-    z = sqrt ( max 0 ( 1 - (x * x) + (y * y) ) )
+    z = sqrt ( max 0 ( 1 - (x * x) - (y * y) ) )
   in
     Vector3 x y z
 
@@ -332,7 +332,7 @@ updateCameraMoveState (shift, ctrl, keysDown, touches) oldMoveState =
                       (Vector3 rx ry rz) = crossV3xV3 v1 dv
 
                       -- rw is found so that it is the w coordinate of a normalised (i.e. unit length) quaternion.
-                      rw = sqrt ( max 0 ( 1  - (rx * rx) + (ry * ry) + (rz * rz) ) )
+                      rw = sqrt ( max 0 ( 1  - (rx * rx) - (ry * ry) - (rz * rz) ) )
 
                       -- Simple formula for rotation quaternion, since it is an infinitesimal rotation.
                       rotQuaternion = normaliseQuaternion (Quaternion rw rx ry rz) 
