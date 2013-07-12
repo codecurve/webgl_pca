@@ -1,6 +1,8 @@
 The Javascript 'sources' in this repository are generated using Elm. The
 source repository of the original source is available here:
   https://github.com/A1kmm/webgl_pca/
+See also 
+  https://github.com/codecurve/webgl_pca/
 
 Building it relies on some fixes to Elm that may not yet have been merged
 into the official version of Elm - use the 'dev' branch from here:
